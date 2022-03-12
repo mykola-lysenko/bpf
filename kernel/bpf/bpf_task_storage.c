@@ -174,7 +174,8 @@ static int bpf_pid_task_storage_update_elem(struct bpf_map *map, void *key,
 
 	bpf_task_storage_lock();
 	sdata = bpf_local_storage_update(
-		task, (struct bpf_local_storage_map *)map, value, map_flags);
+		task, (struct bpf_local_storage_map *)map, value, map_flags,
+		GFP_ATOMIC);
 	bpf_task_storage_unlock();
 
 	err = PTR_ERR_OR_ZERO(sdata);
@@ -226,8 +227,9 @@ out:
 	return err;
 }
 
-BPF_CALL_4(bpf_task_storage_get, struct bpf_map *, map, struct task_struct *,
-	   task, void *, value, u64, flags)
+/* *mem_flags* is set by the bpf verifier */
+BPF_CALL_5(bpf_task_storage_get, struct bpf_map *, map, struct task_struct *,
+	   task, void *, value, u64, flags, gfp_t, mem_flags)
 {
 	struct bpf_local_storage_data *sdata;
 
@@ -250,7 +252,7 @@ BPF_CALL_4(bpf_task_storage_get, struct bpf_map *, map, struct task_struct *,
 	    (flags & BPF_LOCAL_STORAGE_GET_F_CREATE))
 		sdata = bpf_local_storage_update(
 			task, (struct bpf_local_storage_map *)map, value,
-			BPF_NOEXIST);
+			BPF_NOEXIST, mem_flags);
 
 unlock:
 	bpf_task_storage_unlock();
